@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/database/">
+    <File Path="database/BiblioTech.sql" />
+  </Folder>
+  <Folder Name="/Elementos de la solución/">
+    <File Path="README.md" />
+  </Folder>
+  <Project Path="BiblioTech2.Api/BiblioTech2.Api.csproj" />
+  <Project Path="BiblioTech2.Web/BiblioTech2.Web.Client/BiblioTech2.Web.Client.csproj" />
+  <Project Path="BiblioTech2.Web/BiblioTech2.Web/BiblioTech2.Web.csproj" />
+</Solution>

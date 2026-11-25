@@ -1,0 +1,21 @@
+[
+  {
+    "Name": "Api + Web",
+    "Projects": [
+      {
+        "Path": "BiblioTech2.Api\\BiblioTech2.Api.csproj",
+        "Action": "Start",
+        "DebugTarget": "https"
+      },
+      {
+        "Path": "BiblioTech2.Web\\BiblioTech2.Web\\BiblioTech2.Web.csproj",
+        "Action": "Start",
+        "DebugTarget": "https"
+      },
+      {
+        "Path": "BiblioTech2.Web\\BiblioTech2.Web.Client\\BiblioTech2.Web.Client.csproj",
+        "Action": "Start"
+      }
+    ]
+  }
+]

@@ -1,0 +1,194 @@
+@host = https://localhost:7180
+
+# ============================================================
+#  CÓMO USAR ESTE ARCHIVO (Visual Studio: clic en "Enviar solicitud")
+#  1. Ejecuta la API.
+#  2. Corre "Registro primer usuario" (solo la primera vez) y luego "Login".
+#  3. Copia el "token" de la respuesta y pégalo abajo en @token (sin comillas).
+#  4. Ya puedes probar los endpoints marcados con 🔒.
+#  Los datos esperados son los del script database/BiblioTech.sql recién ejecutado.
+# ============================================================
+@token = PEGA_AQUI_EL_TOKEN
+
+### Documento OpenAPI (prueba que la API responde)
+GET {{host}}/openapi/v1.json
+
+
+# ============================== AUTH ==============================
+
+### Registro primer usuario → queda Admin (sin token, solo funciona si la tabla Usuarios está vacía)
+POST {{host}}/api/auth/registro
+Content-Type: application/json
+
+{ "email": "admin@biblio.com", "password": "Admin123" }
+
+### Login → copia el "token" de la respuesta
+POST {{host}}/api/auth/login
+Content-Type: application/json
+
+{ "email": "admin@biblio.com", "password": "Admin123" }
+
+### Login con contraseña mala → 401 "Correo o contraseña incorrectos."
+POST {{host}}/api/auth/login
+Content-Type: application/json
+
+{ "email": "admin@biblio.com", "password": "mala" }
+
+### 🔒 ¿Quién soy? → 200 con token, 401 sin token
+GET {{host}}/api/auth/yo
+Authorization: Bearer {{token}}
+
+### 🔒 Admin registra un bibliotecario
+POST {{host}}/api/auth/registro
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "email": "biblio@biblio.com", "password": "Biblio123", "rol": "Bibliotecario" }
+
+
+# ============================== AUTORES ==============================
+
+### Listar autores (libre)
+GET {{host}}/api/autores
+
+### Obtener autor 1
+GET {{host}}/api/autores/1
+
+### Sin token → 401
+POST {{host}}/api/autores
+Content-Type: application/json
+
+{ "nombre": "Autor sin token" }
+
+### 🔒 Crear autor
+POST {{host}}/api/autores
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "nombre": "Jorge Luis Borges", "nacionalidad": "Argentina" }
+
+### 🔒 Eliminar autor con libros → 409
+DELETE {{host}}/api/autores/1
+Authorization: Bearer {{token}}
+
+
+# ============================== LIBROS ==============================
+
+### Listar / buscar por título, ISBN o autor (libre)
+GET {{host}}/api/libros?buscar=clean
+
+### Obtener libro 6 (tiene DOS autores)
+GET {{host}}/api/libros/6
+
+### 🔒 Crear libro
+POST {{host}}/api/libros
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "titulo": "Ficciones", "isbn": "978-0802130303", "anioPublicacion": 1944, "ejemplaresTotales": 2, "autorIds": [1] }
+
+### 🔒 ISBN repetido → 409
+POST {{host}}/api/libros
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "titulo": "Copia", "isbn": "978-0132350884", "ejemplaresTotales": 1, "autorIds": [4] }
+
+### 🔒 Datos inválidos → 400 con "errores" por campo
+POST {{host}}/api/libros
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "titulo": "", "isbn": "", "ejemplaresTotales": 0, "autorIds": [] }
+
+### 🔒 Eliminar libro con préstamos → 409
+DELETE {{host}}/api/libros/5
+Authorization: Bearer {{token}}
+
+
+# ============================== SOCIOS ==============================
+
+### Listar socios (libre) — ?activos=true | false
+GET {{host}}/api/socios?activos=true
+
+### Obtener socio 1 (Ana: 3 préstamos activos)
+GET {{host}}/api/socios/1
+
+### 🔒 Crear socio
+POST {{host}}/api/socios
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "documento": "6060606060", "nombre": "Diego Torres", "email": "diego.torres@ejemplo.com" }
+
+### 🔒 Documento repetido → 409
+POST {{host}}/api/socios
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "documento": "1010101010", "nombre": "Otra Ana", "email": "otra@ejemplo.com" }
+
+### 🔒 Desactivar a Ana (tiene préstamos sin devolver) → 409
+PATCH {{host}}/api/socios/1/estado
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "activo": false }
+
+
+# ============================== PRÉSTAMOS ==============================
+
+### Listar préstamos (libre) — ?estado=Activo | Devuelto | Vencido  &socioId=
+GET {{host}}/api/prestamos?estado=Activo
+
+### Préstamos vencidos (lee la VISTA vw_PrestamosVencidos)
+GET {{host}}/api/prestamos/vencidos
+
+### 🔒 Prestar OK: Pedro (4) se lleva "El amor en los tiempos del cólera" (2) → 201
+POST {{host}}/api/prestamos
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "libroId": 2, "socioId": 4 }
+
+### 🔒 R1 sin ejemplares: libro 7 tiene 0 disponibles → 409
+POST {{host}}/api/prestamos
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "libroId": 7, "socioId": 3 }
+
+### 🔒 R2 máximo 3: Ana (1) ya tiene 3 → 409
+POST {{host}}/api/prestamos
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "libroId": 2, "socioId": 1 }
+
+### 🔒 R3 con vencidos: Carlos (2) tiene uno vencido → 409
+POST {{host}}/api/prestamos
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "libroId": 2, "socioId": 2 }
+
+### 🔒 R6 socio inactivo: Sofía (5) → 409
+POST {{host}}/api/prestamos
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "libroId": 2, "socioId": 5 }
+
+### 🔒 Devolver el préstamo 1
+PUT {{host}}/api/prestamos/1/devolver
+Authorization: Bearer {{token}}
+
+### 🔒 R5 devolver otra vez → 409
+PUT {{host}}/api/prestamos/1/devolver
+Authorization: Bearer {{token}}
+
+
+# ============================== DASHBOARD ==============================
+
+### Resumen (ejecuta el procedimiento sp_ResumenDashboard)
+GET {{host}}/api/dashboard

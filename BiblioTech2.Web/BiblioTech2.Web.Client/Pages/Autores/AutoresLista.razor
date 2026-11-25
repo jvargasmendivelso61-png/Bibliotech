@@ -1,0 +1,120 @@
+@page "/autores"
+@rendermode @(new InteractiveWebAssemblyRenderMode(prerender: false))
+@inject AutorApiService Servicio
+@inject NavigationManager Navegacion
+@inject IJSRuntime JS
+
+<PageTitle>Autores</PageTitle>
+
+<h1>Autores</h1>
+
+@* Leer es libre; crear, editar y eliminar requieren sesión (la API lo exige con el token). *@
+<AuthorizeView>
+    <Authorized>
+        <a class="btn btn-primary mb-3" href="autores/nuevo">Nuevo autor</a>
+    </Authorized>
+    <NotAuthorized>
+        <p class="text-muted"><a href="login?volver=autores">Inicia sesión</a> para crear, editar o eliminar autores.</p>
+    </NotAuthorized>
+</AuthorizeView>
+
+<Alerta Mensaje="@mensaje" Exito="@exito" Errores="@errores" OnCerrar="CerrarMensaje" />
+
+@if (cargando)
+{
+    <p><em>Cargando autores...</em></p>
+}
+else if (autores is null || autores.Count == 0)
+{
+    <p>No hay autores registrados.</p>
+}
+else
+{
+    <table class="table table-striped align-middle">
+        <thead>
+            <tr>
+                <th>Nombre</th>
+                <th>Nacionalidad</th>
+                <th class="text-end">Libros</th>
+                <AuthorizeView>
+                    <Authorized><th></th></Authorized>
+                </AuthorizeView>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var autor in autores)
+            {
+                <tr>
+                    <td>@autor.Nombre</td>
+                    <td>@(autor.Nacionalidad ?? "—")</td>
+                    <td class="text-end">@autor.CantidadLibros</td>
+                    <AuthorizeView>
+                        <Authorized Context="sesion">
+                            <td class="text-end text-nowrap">
+                                <a class="btn btn-sm btn-outline-primary" href="autores/editar/@autor.Id">Editar</a>
+                                <button class="btn btn-sm btn-outline-danger ms-1" @onclick="() => EliminarAsync(autor)">Eliminar</button>
+                            </td>
+                        </Authorized>
+                    </AuthorizeView>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    // Mensaje que llega desde el formulario: autores?mensaje=Autor%20creado
+    [SupplyParameterFromQuery(Name = "mensaje")] public string? MensajeEntrada { get; set; }
+
+    private List<AutorDto>? autores;
+    private bool cargando = true;
+    private bool exito;
+    private string? mensaje;
+    private Dictionary<string, string[]>? errores;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!string.IsNullOrWhiteSpace(MensajeEntrada))
+        {
+            mensaje = MensajeEntrada;
+            exito = true;
+        }
+
+        await CargarAsync();
+    }
+
+    private async Task CargarAsync()
+    {
+        cargando = true;
+        var respuesta = await Servicio.ListarAsync();
+        cargando = false;
+
+        if (respuesta.Exito)
+        {
+            autores = respuesta.Datos ?? [];
+        }
+        else
+        {
+            autores = [];
+            mensaje = respuesta.Mensaje;   // ej. "No fue posible conectar con la API."
+            errores = respuesta.Errores;
+            exito = false;
+        }
+    }
+
+    private async Task EliminarAsync(AutorDto autor)
+    {
+        if (!await JS.InvokeAsync<bool>("confirm", $"¿Eliminar al autor \"{autor.Nombre}\"?"))
+            return;
+
+        var respuesta = await Servicio.EliminarAsync(autor.Id);
+        mensaje = respuesta.Mensaje;
+        errores = respuesta.Errores;
+        exito = respuesta.Exito;
+
+        if (respuesta.Exito)
+            await CargarAsync();
+    }
+
+    private void CerrarMensaje() => mensaje = null;
+}
